@@ -3,6 +3,7 @@
 This project consists of a Python-based backend (FastAPI) and a React/TypeScript frontend (Vite) designed for lead generation, analytics, and CRM integration.
 
 ## Table of Contents
+- [Author](#author)
 - [Features](#features)
 - [Project Structure](#project-structure)
 - [Prerequisites](#prerequisites)
@@ -14,16 +15,22 @@ This project consists of a Python-based backend (FastAPI) and a React/TypeScript
   - [Starting the Frontend](#starting-the-frontend)
 - [Environment Variables](#environment-variables)
 - [Usage](#usage)
+- [Technical Deep Dive](#technical-deep-dive)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
 
+## Author
+Dhavala Kartikeya Somayaji
+
 ## Features
-- **Lead Search & Scraping:** Search and scrape business leads from various sources.
-- **Lead Enrichment:** Enrich lead data with additional information (e.g., news, contact details).
-- **Analytics Dashboard:** Visualize lead distribution, projections, and top leads.
-- **CRM Integration:** Simulate or integrate with CRM systems for lead management.
-- **AI-Powered Insights:** Generate insights using Gemini models.
+- **Lead Search & Scraping:** Efficiently search and scrape business leads from various sources. This feature ensures a comprehensive database of potential clients.
+- **Lead Enrichment:** Enhance raw lead data by integrating with external APIs to fetch additional information like company news, contact details, and industry-specific metrics.
+- **Analytics Dashboard:** A dynamic dashboard visualizing key lead metrics, including lead distribution by industry/location, lead projections, and identification of top-performing leads, providing actionable insights for sales strategies.
+- **CRM Integration:** Seamlessly simulate or integrate with CRM systems to manage the lead lifecycle, track interactions, and streamline sales processes.
+- **AI-Powered Insights (Unique Feature):** A distinctive "Insights" module that leverages advanced ML models (Gemini) to analyze company data and provide comprehensive pros and cons, helping customers make informed decisions about potential leads.
+- **Real-time Updates (WebSockets):** (If applicable, describe where WebSockets are used for real-time updates, e.g., for lead scraping progress, analytics updates)
+- **Data Deduplication:** Robust mechanisms are implemented to identify and eliminate duplicate leads, ensuring data integrity and preventing redundancy in the system.
 
 ## Project Structure
 ```
@@ -128,6 +135,36 @@ Once both the backend and frontend servers are running, open your web browser an
 
 -   You should see the login page.
 -   After logging in, you can use the dashboard to search for companies, view analytics, generate insights, and manage leads.
+
+## Technical Deep Dive
+
+### ML Integration for Lead Enhancement
+The backend integrates with machine learning models (specifically Gemini) to analyze lead data and provide actionable insights. This involves:
+-   **Data Processing:** Raw lead data is processed and fed into the ML models.
+-   **Insight Generation:** The models generate a structured output, including identified pros and cons for each company, enhancing the value proposition for sales teams.
+-   **Model Management:** (If applicable, describe how models are loaded, updated, or fine-tuned. E.g., models are loaded on application startup for efficiency.)
+
+### CRM Integration
+The CRM integration allows for seamless management of leads. This is primarily handled within the `backend/app/crm/` and `backend/app/services/crm_service.py` modules. Key aspects include:
+-   **Lead Status Management:** Leads can be moved through different stages (e.g., New, Contacted, Qualified) to reflect their progress in the sales pipeline.
+-   **Data Synchronization:** (If applicable, mention if there's any data synchronization with a real CRM or if it's a simulated environment). The current implementation simulates sending lead data to a CRM, allowing for flexible integration with various platforms.
+
+### Analytics Dashboard
+The analytics dashboard provides a comprehensive overview of lead performance, powered by data fetched from MongoDB and processed by the ML service. It visualizes:
+-   **Lead Distribution:** Charts showing the distribution of leads across different industries, locations, or other relevant categories.
+-   **Lead Projections:** (If applicable, describe how lead projections are calculated or displayed).
+-   **Top Leads:** Identification and display of high-potential leads based on predefined criteria or ML-driven scoring.
+
+### Data Deduplication
+To maintain data cleanliness and efficiency, the application incorporates a deduplication mechanism. This ensures that:
+-   New leads are checked against existing records to prevent duplicates.
+-   Deduplication logic is applied during (e.g., data ingestion or before saving to MongoDB) to maintain a unique and high-quality lead database.
+
+### MongoDB Integration
+MongoDB serves as the primary NoSQL database for storing lead information. Key aspects of its integration include:
+-   **Flexible Schema:** MongoDB's flexible schema is ideal for storing diverse lead data, which may vary depending on the scraping source or enrichment process.
+-   **Efficient Data Retrieval:** Indexes are utilized for quick retrieval of leads based on various search criteria.
+-   **Scalability:** MongoDB's architecture supports scaling to handle growing volumes of lead data.
 
 ## Troubleshooting
 -   **Port in use error:** If you encounter an "Address already in use" error when starting a server, kill the process using that port.
