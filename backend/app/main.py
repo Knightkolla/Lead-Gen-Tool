@@ -1,95 +1,51 @@
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
-from .api.search import router as search_router
-from .api.enrich import router as enrich_router
-from .api.insights import router as insights_router
-from .api.auth import router as auth_router
-from .api.crm import router as crm_router
-from .database import get_mongo_db
+from contextlib import asynccontextmanager
+from motor.motor_asyncio import AsyncIOMotorClient
+from .database import connect_to_mongo, close_mongo_connection
+from .api import search, enrich, insights, scrape, crm, auth  # Import new scraper router
+from dotenv import load_dotenv
+import os
+import logging
+from fastapi.middleware.cors import CORSMiddleware # Import CORSMiddleware
 
-app = FastAPI()
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Configure CORS
+# Load environment variables from .env file at the backend directory
+load_dotenv(override=True) # Ensure .env is loaded at app startup
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Connect to MongoDB
+    await connect_to_mongo()
+    yield
+    # Close MongoDB connection
+    await close_mongo_connection()
+
+app = FastAPI(lifespan=lifespan)
+
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # Allow both Vite ports
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(search_router, prefix="/api", tags=["search"])
-app.include_router(enrich_router, prefix="/api", tags=["enrich"])
-app.include_router(insights_router, prefix="/api", tags=["insights"])
-app.include_router(auth_router, prefix="/api", tags=["auth"])
-app.include_router(crm_router, prefix="/api", tags=["crm"])
+# Include API routers
+app.include_router(search.router, prefix="/api")
+app.include_router(enrich.router, prefix="/api")
+app.include_router(insights.router, prefix="/api")
+app.include_router(scrape.router, prefix="/api") # Include the scrape router
+app.include_router(crm.router, prefix="/api") # CRM router already has /crm prefix
+app.include_router(auth.router, prefix="/api") # Include the authentication router
 
-@app.post("/api/add_dummy_data", summary="Add dummy company data to the database")
-async def add_dummy_data(db = Depends(get_mongo_db)):
-    dummy_companies = [
-        {
-            "name": "Tech Solutions Inc.",
-            "industry": "Technology",
-            "location": "San Francisco, CA",
-            "employee_count": 500,
-            "revenue": "$500M",
-            "website": "techsolutions.com",
-            "description": "A leading software development company.",
-            "contact_info": "info@techsolutions.com",
-            "probability_score": 8.5,
-        },
-        {
-            "name": "Global Innovations Ltd.",
-            "industry": "Manufacturing",
-            "location": "New York, NY",
-            "employee_count": 1200,
-            "revenue": "$1.2B",
-            "website": "globalinnovations.com",
-            "description": "Innovating in industrial automation.",
-            "contact_info": "contact@globalinnovations.com",
-            "probability_score": 7.8,
-        },
-        {
-            "name": "Green Energy Corp.",
-            "industry": "Renewable Energy",
-            "location": "Austin, TX",
-            "employee_count": 250,
-            "revenue": "$150M",
-            "website": "greenenergycorp.com",
-            "description": "Developing sustainable energy solutions.",
-            "contact_info": "sales@greenenergycorp.com",
-            "probability_score": 9.1,
-        },
-        {
-            "name": "MediCare Pharma",
-            "industry": "Healthcare",
-            "location": "Boston, MA",
-            "employee_count": 700,
-            "revenue": "$800M",
-            "website": "medicarepharma.com",
-            "description": "Pharmaceutical research and development.",
-            "contact_info": "hr@medicarepharma.com",
-            "probability_score": 8.9,
-        },
-        {
-            "name": "Future Retail",
-            "industry": "Retail",
-            "location": "Los Angeles, CA",
-            "employee_count": 3000,
-            "revenue": "$2.5B",
-            "website": "futureretail.com",
-            "description": "Online and offline retail solutions.",
-            "contact_info": "support@futureretail.com",
-            "probability_score": 7.0,
-        },
-    ]
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    return {"message": "OK"}
 
-    try:
-        for company_data in dummy_companies:
-            # Check if company already exists to avoid duplicates
-            if not db.companies.find_one({"name": company_data["name"]}):
-                db.companies.insert_one(company_data)
-        return {"message": "Dummy data added successfully!"}
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the CRM Lead Enrichment API!"}

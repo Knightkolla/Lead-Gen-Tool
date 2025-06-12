@@ -2,7 +2,12 @@ import os
 from typing import Dict, Any
 from dotenv import load_dotenv
 
-load_dotenv()
+# Get the directory of the current file (crm_service.py)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Construct the path to the .env file, assuming it's in the backend/ directory
+dotenv_path = os.path.join(current_dir, os.pardir, '.env')
+
+load_dotenv(dotenv_path=dotenv_path)
 
 # Placeholder for CRM API Key or authentication details
 CRM_API_KEY = os.getenv("CRM_API_KEY")
