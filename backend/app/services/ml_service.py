@@ -17,22 +17,28 @@ class MLService:
         """Convert lead data into numerical features for ML models"""
         features = []
         for lead in leads:
-            # Extract numerical features
-            employee_count = float(lead.get('employeeCount', 0))
-            revenue = self._parse_revenue(lead.get('revenue', '0'))
-            website_score = self._score_website(lead.get('website', ''))
-            description_score = self._score_description(lead.get('description', ''))
-            industry_score = self._score_industry(lead.get('industry', ''))
-            location_score = self._score_location(lead.get('location', ''))
-            
-            features.append([
-                employee_count,
-                revenue,
-                website_score,
-                description_score,
-                industry_score,
-                location_score
-            ])
+            try:
+                # Extract numerical features with safe defaults
+                employee_count = float(lead.get('employeeCount', 0) or 0)
+                revenue = self._parse_revenue(lead.get('revenue', '0') or '0')
+                website_score = self._score_website(lead.get('website', '') or '')
+                description_score = self._score_description(lead.get('description', '') or '')
+                industry_score = self._score_industry(lead.get('industry', '') or '')
+                location_score = self._score_location(lead.get('location', '') or '')
+                
+                features.append([
+                    employee_count,
+                    revenue,
+                    website_score,
+                    description_score,
+                    industry_score,
+                    location_score
+                ])
+            except Exception as e:
+                print(f"Error processing lead: {e}")
+                # Add default features if processing fails
+                features.append([0, 0, 0, 0, 0, 0])
+        
         return np.array(features)
 
     def _parse_revenue(self, revenue_str: str) -> float:
@@ -188,101 +194,53 @@ class MLService:
         return leads, cluster_stats
 
     def get_analytics_data(self, leads: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate analytics data for the frontend"""
-        if not leads:
-            return {
-                'total_leads': 0,
-                'potential_distribution': {'high': 0, 'medium': 0, 'low': 0},
-                'industry_distribution': {},
-                'location_distribution': {},
-                'employee_size_distribution': {},
-                'revenue_distribution': {},
-                'trends': {
-                    'daily_leads': [],
-                    'potential_trend': []
+        """Generate analytics data for the frontend (dashboard)"""
+        try:
+            if not leads:
+                return {
+                    'lead_distribution': {},
+                    'lead_projection': [],
+                    'top_leads': []
                 }
+
+            # Train models if not already trained
+            if not self.is_trained:
+                self.train_models(leads)
+
+            # 1. Lead Distribution by Industry
+            industry_dist = {}
+            for lead in leads:
+                industry = lead.get('industry', 'Unknown')
+                industry_dist[industry] = industry_dist.get(industry, 0) + 1
+
+            # 2. Lead Projection (last 6 months)
+            projection = []
+            for i in range(6):
+                month = (datetime.now().month - i - 1) % 12 + 1
+                year = datetime.now().year - ((datetime.now().month - i - 1) // 12)
+                projection.append({
+                    'month': f"{year}-{month:02d}",
+                    'leads': len(leads) // 6  # Simple projection
+                })
+
+            # 3. Top Leads (based on ML score)
+            try:
+                ranked_leads = self.rank_leads(leads)
+                top_leads = ranked_leads[:5] if ranked_leads else []
+            except Exception as e:
+                print(f"Error ranking leads: {e}")
+                # Fallback to simple sorting by employee count
+                top_leads = sorted(leads, key=lambda x: float(x.get('employeeCount', 0) or 0), reverse=True)[:5]
+
+            return {
+                'lead_distribution': industry_dist,
+                'lead_projection': projection,
+                'top_leads': top_leads
             }
-        
-        # Get cluster statistics
-        _, cluster_stats = self.cluster_leads(leads)
-        
-        # Calculate distributions
-        industry_dist = {}
-        location_dist = {}
-        employee_size_dist = {
-            '1-10': 0,
-            '11-50': 0,
-            '51-200': 0,
-            '201-1000': 0,
-            '1000+': 0
-        }
-        revenue_dist = {
-            '0-1M': 0,
-            '1M-10M': 0,
-            '10M-100M': 0,
-            '100M+': 0
-        }
-        
-        for lead in leads:
-            # Industry distribution
-            industry = lead.get('industry', 'Unknown')
-            industry_dist[industry] = industry_dist.get(industry, 0) + 1
-            
-            # Location distribution
-            location = lead.get('location', 'Unknown')
-            location_dist[location] = location_dist.get(location, 0) + 1
-            
-            # Employee size distribution
-            emp_count = float(lead.get('employeeCount', 0))
-            if emp_count <= 10:
-                employee_size_dist['1-10'] += 1
-            elif emp_count <= 50:
-                employee_size_dist['11-50'] += 1
-            elif emp_count <= 200:
-                employee_size_dist['51-200'] += 1
-            elif emp_count <= 1000:
-                employee_size_dist['201-1000'] += 1
-            else:
-                employee_size_dist['1000+'] += 1
-            
-            # Revenue distribution
-            revenue = self._parse_revenue(lead.get('revenue', '0'))
-            if revenue <= 1_000_000:
-                revenue_dist['0-1M'] += 1
-            elif revenue <= 10_000_000:
-                revenue_dist['1M-10M'] += 1
-            elif revenue <= 100_000_000:
-                revenue_dist['10M-100M'] += 1
-            else:
-                revenue_dist['100M+'] += 1
-        
-        # Generate trend data (last 7 days)
-        today = datetime.now()
-        daily_leads = []
-        potential_trend = []
-        
-        for i in range(7):
-            date = (today - pd.Timedelta(days=i)).strftime('%Y-%m-%d')
-            daily_leads.append({
-                'date': date,
-                'count': len([l for l in leads if l.get('created_at', '').startswith(date)])
-            })
-            potential_trend.append({
-                'date': date,
-                'high': len([l for l in leads if l.get('created_at', '').startswith(date) and l.get('potential') == 'high']),
-                'medium': len([l for l in leads if l.get('created_at', '').startswith(date) and l.get('potential') == 'medium']),
-                'low': len([l for l in leads if l.get('created_at', '').startswith(date) and l.get('potential') == 'low'])
-            })
-        
-        return {
-            'total_leads': len(leads),
-            'potential_distribution': cluster_stats,
-            'industry_distribution': industry_dist,
-            'location_distribution': location_dist,
-            'employee_size_distribution': employee_size_dist,
-            'revenue_distribution': revenue_dist,
-            'trends': {
-                'daily_leads': daily_leads,
-                'potential_trend': potential_trend
-            }
-        } 
+        except Exception as e:
+            print(f"Error generating analytics: {e}")
+            return {
+                'lead_distribution': {},
+                'lead_projection': [],
+                'top_leads': []
+            } 
