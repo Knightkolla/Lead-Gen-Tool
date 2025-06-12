@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 import os
 import logging
 from fastapi.middleware.cors import CORSMiddleware # Import CORSMiddleware
+from .services.leads_service import LeadsService
+from .services.insights_service import get_company_insights
+from typing import List, Dict, Any, Optional
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +44,52 @@ app.include_router(insights.router, prefix="/api")
 app.include_router(scrape.router, prefix="/api") # Include the scrape router
 app.include_router(crm.router, prefix="/api") # CRM router already has /crm prefix
 app.include_router(auth.router, prefix="/api") # Include the authentication router
+
+# Initialize services
+leads_service = LeadsService()
+
+@app.get("/api/leads")
+async def get_leads(sort_by: Optional[str] = None):
+    return leads_service.get_leads(sort_by)
+
+@app.get("/api/leads/{lead_id}")
+async def get_lead(lead_id: str):
+    lead = leads_service.get_lead_by_id(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return lead
+
+@app.post("/api/leads")
+async def create_lead(lead: Dict[str, Any]):
+    return leads_service.add_lead(lead)
+
+@app.put("/api/leads/{lead_id}")
+async def update_lead(lead_id: str, lead: Dict[str, Any]):
+    updated_lead = leads_service.update_lead(lead_id, lead)
+    if not updated_lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return updated_lead
+
+@app.delete("/api/leads/{lead_id}")
+async def delete_lead(lead_id: str):
+    if not leads_service.delete_lead(lead_id):
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return {"message": "Lead deleted successfully"}
+
+@app.get("/api/leads/search")
+async def search_leads(q: str):
+    return leads_service.search_leads(q)
+
+@app.get("/api/leads/{lead_id}/insights")
+async def get_lead_insights(lead_id: str):
+    lead = leads_service.get_lead_by_id(lead_id)
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    return get_company_insights(lead)
+
+@app.get("/api/analytics")
+async def get_analytics():
+    return leads_service.get_analytics()
 
 @app.options("/{full_path:path}")
 async def options_handler(full_path: str):
