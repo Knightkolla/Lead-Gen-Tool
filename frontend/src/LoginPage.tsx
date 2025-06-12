@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Box, Button, TextField, Typography, Paper, styled } from '@mui/material'
+import { API_BASE_URL } from './config'
 
 // Reusing GlassmorphismPaper from App.tsx for consistent styling
 const GlassmorphismPaper = styled(Paper)(({ theme }) => ({
@@ -28,7 +29,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToSignU
   const handleLogin = async () => {
     setError(''); // Clear previous errors
     try {
-      const response = await fetch('http://localhost:8000/api/login', {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

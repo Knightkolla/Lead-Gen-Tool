@@ -75,47 +75,47 @@ const LeadEnrichmentApp: React.FC = () => {
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
         Company Search
-      </Typography>
+          </Typography>
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <TextField
+                  <TextField
             label="Company Name"
             value={searchParams.companyName}
             onChange={handleInputChange('companyName')}
             size="small"
-          />
-          <TextField
+                  />
+                  <TextField
             label="Industry"
             value={searchParams.industry}
             onChange={handleInputChange('industry')}
             size="small"
-          />
-          <TextField
+                  />
+                  <TextField
             label="Location"
             value={searchParams.location}
             onChange={handleInputChange('location')}
             size="small"
-          />
-          <TextField
+                  />
+                  <TextField
             label="Min Employees"
-            type="number"
+                    type="number"
             value={searchParams.minEmployees}
             onChange={handleInputChange('minEmployees')}
             size="small"
-          />
-          <TextField
+                  />
+                  <TextField
             label="Max Employees"
             type="number"
             value={searchParams.maxEmployees}
             onChange={handleInputChange('maxEmployees')}
             size="small"
-          />
+                  />
           <Button variant="contained" onClick={handleSearch}>
             Search
           </Button>
-        </Box>
-      </Paper>
+            </Box>
+          </Paper>
 
       {searchResults.length > 0 && (
         <TableContainer component={Paper}>
@@ -148,8 +148,8 @@ const LeadEnrichmentApp: React.FC = () => {
             </TableBody>
           </Table>
         </TableContainer>
-      )}
-    </Box>
+          )}
+        </Box>
   )
 }
 

@@ -32,9 +32,9 @@ function Main() {
   };
 
   return (
-    <StrictMode>
+  <StrictMode>
       {loggedIn ? (
-        <App />
+    <App />
       ) : showSignUp ? (
         <SignUpPage onSignUpSuccess={handleSignUpSuccess} onNavigateToLogin={handleNavigateToLogin} />
       ) : (

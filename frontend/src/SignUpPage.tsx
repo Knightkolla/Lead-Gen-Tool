@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Box, Button, TextField, Typography, Paper, styled } from '@mui/material'
+import { API_BASE_URL } from './config'
 
 // Reusing GlassmorphismPaper from App.tsx for consistent styling
 const GlassmorphismPaper = styled(Paper)(({ theme }) => ({
@@ -34,7 +35,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUpSuccess, onNavigateToLo
     }
 
     try {
-      const response = await fetch('http://localhost:8000/api/register', {
+      const response = await fetch(`${API_BASE_URL}/api/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

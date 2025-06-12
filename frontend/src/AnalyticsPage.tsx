@@ -3,6 +3,7 @@ import { Box, Typography, Paper, Button, styled, useTheme, Stack, Chip } from '@
 import { ArrowBack as ArrowBackIcon, Dashboard as DashboardIcon, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon } from '@mui/icons-material';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title } from 'chart.js';
 import { Pie, Line } from 'react-chartjs-2';
+import { API_BASE_URL } from './config';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title);
 
@@ -32,49 +33,86 @@ interface TopLead {
   change: string;
 }
 
-// Sample data for the charts
-const pieChartData = {
-  labels: ['High Potential', 'Medium Potential', 'Low Potential'],
-  datasets: [
-    {
-      data: [35, 45, 20],
-      backgroundColor: ['#4169E1', '#B8860B', '#FFBF00'],
-      borderColor: ['#4169E1', '#B8860B', '#FFBF00'],
-      borderWidth: 1,
-    },
-  ],
-};
-
-const projectionData = {
-  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-  datasets: [
-    {
-      label: 'Actual Leads',
-      data: [30, 45, 35, 50, 40, 55],
-      borderColor: '#4169E1',
-      backgroundColor: 'rgba(65, 105, 225, 0.1)',
-      tension: 0.4,
-    },
-    {
-      label: 'Projection',
-      data: [35, 40, 45, 50, 55, 60],
-      borderColor: '#B8860B',
-      backgroundColor: 'rgba(184, 134, 11, 0.1)',
-      tension: 0.4,
-      borderDash: [5, 5],
-    },
-  ],
-};
-
-const topLeads: TopLead[] = [
-  { name: 'Tech Corp', score: 9.2, trend: 'up', change: '+12%' },
-  { name: 'Innovate Inc', score: 8.8, trend: 'up', change: '+8%' },
-  { name: 'Future Systems', score: 8.5, trend: 'down', change: '-3%' },
-  { name: 'Smart Solutions', score: 8.3, trend: 'up', change: '+5%' },
-];
+interface AnalyticsData {
+  lead_distribution: { [key: string]: number };
+  lead_projection: { month: string; actual: number; projection: number }[];
+  top_leads: TopLead[];
+}
 
 const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onBack, darkMode }) => {
   const theme = useTheme();
+  const [analyticsData, setAnalyticsData] = React.useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = React.useState<boolean>(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE_URL}/api/analytics`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: AnalyticsData = await response.json();
+        setAnalyticsData(data);
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAnalytics();
+  }, []);
+
+  const pieChartData = React.useMemo(() => {
+    if (!analyticsData?.lead_distribution) return { labels: [], datasets: [] };
+    const labels = Object.keys(analyticsData.lead_distribution);
+    const data = Object.values(analyticsData.lead_distribution);
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: ['#4169E1', '#B8860B', '#FFBF00'],
+          borderColor: ['#4169E1', '#B8860B', '#FFBF00'],
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [analyticsData]);
+
+  const projectionData = React.useMemo(() => {
+    if (!analyticsData?.lead_projection) return { labels: [], datasets: [] };
+    const labels = analyticsData.lead_projection.map(item => item.month);
+    const actualData = analyticsData.lead_projection.map(item => item.actual);
+    const projectionData = analyticsData.lead_projection.map(item => item.projection);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Actual Leads',
+          data: actualData,
+          borderColor: '#4169E1',
+          backgroundColor: 'rgba(65, 105, 225, 0.1)',
+          tension: 0.4,
+        },
+        {
+          label: 'Projection',
+          data: projectionData,
+          borderColor: '#B8860B',
+          backgroundColor: 'rgba(184, 134, 11, 0.1)',
+          tension: 0.4,
+          borderDash: [5, 5],
+        },
+      ],
+    };
+  }, [analyticsData]);
+
+  const topLeads = React.useMemo(() => {
+    if (!analyticsData?.top_leads) return [];
+    return analyticsData.top_leads;
+  }, [analyticsData]);
 
   const chartOptions = {
     responsive: true,

@@ -19,9 +19,12 @@ import Button from '@mui/material/Button'
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Snackbar, Alert } from '@mui/material'
 import type { SxProps, Theme } from '@mui/material/styles'
 import { motion } from 'framer-motion' // Import motion
+import { API_BASE_URL } from './config'
+import LogoutIcon from '@mui/icons-material/Logout'
 
 import CompanyInsightsPage from './CompanyInsightsPage' // Import the new component
 import AnalyticsPage from './AnalyticsPage'; // Import the new AnalyticsPage component
+import ScrapeLeadsPage from './ScrapeLeadsPage' // Import the new ScrapeLeadsPage component
 
 import '@fontsource/inter' // Import Inter font
 
@@ -61,6 +64,10 @@ interface Company {
   insightsSummary?: string // New field for company insights
 }
 
+interface InsightsResponse {
+  insightsSummary: string;
+}
+
 function App() {
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)')
   const [darkMode, setDarkMode] = useState(prefersDarkMode)
@@ -75,6 +82,7 @@ function App() {
   const [enrichingCompany, setEnrichingCompany] = useState<string | null>(null)
   const [selectedCompanyForInsights, setSelectedCompanyForInsights] = useState<Company | null>(null)
   const [showAnalyticsPage, setShowAnalyticsPage] = useState<boolean>(false)
+  const [activeView, setActiveView] = useState<'dashboard' | 'insights' | 'analytics' | 'scrape'>('dashboard') // New state to manage active view
   const [sendingToCrm, setSendingToCrm] = useState<string | null>(null) // New state for CRM loading
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -161,65 +169,28 @@ function App() {
     [darkMode],
   )
 
-  const memoizedMainBoxSx = useMemo<SxProps<Theme>>(() => ({
-    display: 'flex',
-    height: '100vh',
-    width: '100vw',
-    overflow: 'hidden',
-    bgcolor: theme.palette.background.default,
-    background: theme.palette.mode === 'dark'
-      ? 'linear-gradient(135deg, #1a1a2e 0%, #151525 100%)'
-      : 'linear-gradient(135deg, #F6F6F6 0%, #E0E0E0 100%)',
-  }), [theme])
+  const memoizedMainBoxSx: SxProps<Theme> = useMemo(
+    () => ({
+      display: 'flex',
+      height: '100vh',
+      width: '100vw',
+      overflow: 'hidden',
+      bgcolor: theme.palette.background.default,
+    }),
+    [theme.palette.background.default],
+  );
+
+  const backgroundGradient = darkMode
+    ? 'linear-gradient(135deg, #1a1a2e 0%, #151525 100%)'
+    : 'linear-gradient(135deg, #F6F6F6 0%, #E0E0E0 100%)';
+
+  const mainBoxStyle = { background: backgroundGradient };
 
   const handleThemeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setDarkMode(event.target.checked)
   }
 
   const handleSearch = async () => {
-    // Dummy data for testing purposes
-    const dummySearchResults = [
-      {
-        name: "Green Energy Corp.",
-        industry: "Renewable Energy",
-        location: "San Francisco, CA",
-        employeeCount: 500,
-        revenue: "$100M",
-        website: "greenenergy.com",
-        description: "Leading provider of sustainable energy solutions.",
-        contactInfo: "john.doe@greenenergy.com",
-        probabilityScore: 8.5,
-        rank: 1,
-        insightsSummary: "Strong growth in Q3, expanding into new markets."
-      },
-      {
-        name: "Innovate Tech Solutions",
-        industry: "Software Development",
-        location: "Austin, TX, USA",
-        employeeCount: 1200,
-        revenue: "$250M",
-        website: "innovatetech.com",
-        description: "Specializing in AI-driven software for enterprises.",
-        contactInfo: "jane.smith@innovatetech.com",
-        probabilityScore: 7.9,
-        rank: 2,
-        insightsSummary: "Recently launched new product line, high R&D investment."
-      },
-      {
-        name: "Global Logistics Inc.",
-        industry: "Logistics and Supply Chain",
-        location: "New York, NY, USA",
-        employeeCount: 3000,
-        revenue: "$500M",
-        website: "globallogistics.net",
-        description: "Comprehensive global logistics and shipping services.",
-        contactInfo: "info@globallogistics.net",
-        probabilityScore: 6.8,
-        rank: 3,
-        insightsSummary: "Facing increased competition in freight forwarding."
-      }
-    ];
-
     try {
       // Create a copy of searchParams and handle empty employee fields
       const searchData = {
@@ -228,7 +199,7 @@ function App() {
         maxEmployees: searchParams.maxEmployees ? parseInt(searchParams.maxEmployees) : null,
       };
 
-      const response = await fetch('http://localhost:8000/api/search', {
+      const response = await fetch(`${API_BASE_URL}/api/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -237,16 +208,13 @@ function App() {
       })
 
       if (!response.ok) {
-        // Fallback to dummy data if API call fails
-        console.warn('Search API failed, using dummy data.');
-        setSearchResults(dummySearchResults.map((company, index) => ({ ...company, rank: index + 1 })));
-        return; // Exit after setting dummy data
+        throw new Error('Search failed')
       }
 
-      const data = await response.json()
-      console.log('Search API response data:', data)
+      const searchDataResponse = await response.json()
+      console.log('Search API response data:', searchDataResponse)
       // Sort results by probabilityScore in descending order and assign rank
-      const sortedResults = data.sort(
+      const sortedResults = searchDataResponse.sort(
         (a: Company, b: Company) => (b.probabilityScore || 0) - (a.probabilityScore || 0),
       )
       const rankedResults = sortedResults.map((company: Company, index: number) => ({
@@ -255,9 +223,12 @@ function App() {
       }))
       setSearchResults(rankedResults)
     } catch (error) {
-      console.error('Error searching companies, using dummy data:', error);
-      // Fallback to dummy data in case of any error during fetch
-      setSearchResults(dummySearchResults.map((company, index) => ({ ...company, rank: index + 1 })));
+      console.error('Error searching companies:', error)
+      setSnackbar({
+        open: true,
+        message: 'Failed to search companies. Please try again.',
+        severity: 'error'
+      })
     }
   }
 
@@ -270,7 +241,7 @@ function App() {
   const handleEnrich = async (company: Company) => {
     setEnrichingCompany(company.name) // Set company being enriched for loading state
     try {
-      const response = await fetch('http://localhost:8000/api/enrich', {
+      const response = await fetch(`${API_BASE_URL}/api/enrich`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -282,12 +253,12 @@ function App() {
         throw new Error('Lead enrichment failed')
       }
 
-      const enrichedData = await response.json()
+      const enrichedCompanyData = await response.json() as Company;
 
       // Update the specific company in the search results with enriched data
       setSearchResults((prevResults) =>
         prevResults
-          .map((c) => (c.name === company.name ? { ...c, ...enrichedData } : c))
+          .map((c) => (c.name === company.name ? { ...c, ...enrichedCompanyData } : c))
           .sort((a: Company, b: Company) => (b.probabilityScore || 0) - (a.probabilityScore || 0)),
       )
     } catch (error) {
@@ -369,7 +340,7 @@ function App() {
         // You can map other fields from 'company' to 'CrmLead' as needed
       };
 
-      const response = await fetch('http://localhost:8000/api/crm/lead', {
+      const response = await fetch(`${API_BASE_URL}/api/crm/lead`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -402,7 +373,7 @@ function App() {
 
   const handleInsights = async (company: Company) => {
     try {
-      const response = await fetch('http://localhost:8000/api/insights', {
+      const response = await fetch(`${API_BASE_URL}/api/insights`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -414,7 +385,7 @@ function App() {
         throw new Error('Failed to get insights')
       }
 
-      const insightsData = await response.json()
+      const insightsData: InsightsResponse = await response.json();
 
       // Update the company in the search results with the new insights
       setSearchResults((prevResults) =>
@@ -425,6 +396,7 @@ function App() {
 
       // Set the selected company to display insights page
       setSelectedCompanyForInsights({ ...company, insightsSummary: insightsData.insightsSummary })
+      setActiveView('insights') // Set active view to insights
     } catch (error) {
       console.error('Error fetching insights:', error)
     }
@@ -432,24 +404,31 @@ function App() {
 
   const handleBackToSearch = () => {
     setSelectedCompanyForInsights(null) // Clear selected company to go back to search
+    setActiveView('dashboard') // Set active view back to dashboard
   }
 
   const handleNavigateToAnalytics = () => {
     setShowAnalyticsPage(true); // Show analytics page
     setSelectedCompanyForInsights(null); // Ensure insights page is hidden
+    setActiveView('analytics'); // Set active view to analytics
   }
 
   const handleBackToDashboard = () => {
     setShowAnalyticsPage(false); // Hide analytics page, go back to search dashboard
+    setActiveView('dashboard'); // Set active view to dashboard
+  }
+
+  const handleNavigateToScrapeLeads = () => {
+    setActiveView('scrape'); // Set active view to scrape
   }
 
   // Move the conditional rendering to the end
-  if (selectedCompanyForInsights) {
+  if (activeView === 'insights') {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <CompanyInsightsPage
-          company={selectedCompanyForInsights}
+          company={selectedCompanyForInsights!}
           onBack={handleBackToSearch}
           darkMode={darkMode}
         />
@@ -457,7 +436,7 @@ function App() {
     )
   }
 
-  if (showAnalyticsPage) {
+  if (activeView === 'analytics') {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
@@ -469,10 +448,23 @@ function App() {
     )
   }
 
+  if (activeView === 'scrape') {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <ScrapeLeadsPage
+          onBack={handleBackToDashboard}
+          darkMode={darkMode}
+          onScrapeSuccess={handleSearch} // Trigger search after successful scrape
+        />
+      </ThemeProvider>
+    )
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={memoizedMainBoxSx}>
+      <Box sx={memoizedMainBoxSx} style={mainBoxStyle}>
         {/* Minimal Sidebar */}
         <Box
           sx={{
@@ -487,11 +479,14 @@ function App() {
           }}
         >
           {/* Placeholder for sidebar content, e.g., icons */}
-          <IconButton sx={{ mb: 2 }}>
+          <IconButton sx={{ mb: 2 }} onClick={() => setActiveView('dashboard')}> {/* Dashboard Button */}
             <Box sx={{ width: 40, height: 40, bgcolor: 'primary.main', borderRadius: '8px' }} />
           </IconButton>
           <IconButton sx={{ mb: 2 }} onClick={handleNavigateToAnalytics}> {/* Analytics Button */}
             <Box sx={{ width: 40, height: 40, bgcolor: 'secondary.main', borderRadius: '8px' }} />
+          </IconButton>
+          <IconButton sx={{ mb: 2 }} onClick={handleNavigateToScrapeLeads}> {/* Scrape Leads Button */}
+            <Box sx={{ width: 40, height: 40, bgcolor: 'warning.main', borderRadius: '8px' }} />
           </IconButton>
         </Box>
 
@@ -511,11 +506,16 @@ function App() {
                 control={<Switch checked={darkMode} onChange={handleThemeChange} />}
                 label="Dark Mode"
                 labelPlacement="start"
-                sx={{ color: 'text.primary', mr: 2 }} // Ensure label is visible
+                sx={{ color: 'text.primary', mr: 2 }}
               />
               <Tooltip title="User Profile">
                 <IconButton sx={{ p: 0 }}>
                   <Avatar alt="User Name" src="/static/images/avatar/2.jpg" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Logout">
+                <IconButton sx={{ ml: 2 }} color="error" onClick={() => { localStorage.removeItem('loggedIn'); window.location.reload(); }}>
+                  <LogoutIcon />
                 </IconButton>
               </Tooltip>
             </Toolbar>
@@ -713,4 +713,4 @@ function App() {
   )
 }
 
-export default App 
+export default App
