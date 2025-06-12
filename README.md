@@ -134,7 +134,7 @@ Before you begin, ensure you have the following installed:
 Both the backend and frontend require environment variables for configuration.
 -   **Backend:** Create a `.env` file in the `backend/` directory based on `backend/.env.example`.
 -   **Frontend:** Create a `.env` file in the `frontend/` directory based on `frontend/.env.example`.
--   **The API KEYs are {Hunter,Apollo,NewsApi,Gemini and Scraper}.
+-   The API KEYs are {Hunter,Apollo,NewsApi,Gemini and Scraper}.
 
 **Important:** Never commit your actual `.env` files to Git. Only the `.env.example` files should be tracked.
 
